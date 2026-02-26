@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"outbox-payment-service/internal/domain/models"
+	"outbox-payment-service/internal/infra/postgres"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -107,7 +108,7 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx models.Tx
 		return fmt.Errorf("cannot marshal event: %w", err)
 	}
 
-	if _, err := pgTx.Exec(ctx, query, uuid.New(), models.EventTypeMoneyTransferred, payload); err != nil {
+	if _, err := pgTx.Exec(ctx, query, uuid.New(), postgres.EventTypeMoneyTransferred, payload); err != nil {
 		return fmt.Errorf("cannot exec query: %w", err)
 	}
 
