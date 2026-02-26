@@ -42,6 +42,10 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *models.TransferMo
 		return fmt.Errorf("cannot get account: %w", err)
 	}
 
+	if in.Amount <= 0 {
+		return models.ErrInvalidMoneyTransferAmount
+	}
+
 	if account.Balance < in.Amount {
 		return models.ErrInsufficientFunds
 	}

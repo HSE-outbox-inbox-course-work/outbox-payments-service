@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	ErrInsufficientFunds = errors.New("insufficient funds")
+	ErrInsufficientFunds          = errors.New("insufficient funds")
+	ErrInvalidMoneyTransferAmount = errors.New("invalid money transfer amount")
 )
 
 type AccountID uuid.UUID

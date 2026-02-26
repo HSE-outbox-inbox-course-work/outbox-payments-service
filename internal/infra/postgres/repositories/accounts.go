@@ -32,11 +32,15 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx models.Tx, in *mo
 
 	pgTx, ok := tx.(pgx.Tx)
 	if !ok {
-		return errors.New("transaction is not r pgx.Tx")
+		return errors.New("transaction is not pgx.Tx")
 	}
 
 	if _, err := pgTx.Exec(ctx, query, in.FromAccount, in.ToAccount, in.Amount); err != nil {
-		return fmt.Errorf("cannot change balance: %w", err)
+		return fmt.Errorf("cannot create money transfer: %w", err)
+	}
+
+	if err := r.createMoneyTransferredEvent(ctx, tx, in); err != nil {
+		return fmt.Errorf("cannot create money transfer event: %w", err)
 	}
 
 	return nil
@@ -54,7 +58,7 @@ func (r *Accounts) MoveMoney(ctx context.Context, tx models.Tx, in *models.Trans
 
 	pgTx, ok := tx.(pgx.Tx)
 	if !ok {
-		return errors.New("transaction is not r pgx.Tx")
+		return errors.New("transaction is not pgx.Tx")
 	}
 
 	if _, err := pgTx.Exec(ctx, query, in.FromAccount, in.ToAccount, in.Amount); err != nil {
@@ -71,7 +75,7 @@ func (r *Accounts) GetByID(ctx context.Context, tx models.Tx, id models.AccountI
 
 	pgTx, ok := tx.(pgx.Tx)
 	if !ok {
-		return nil, errors.New("transaction is not r pgx.Tx")
+		return nil, errors.New("transaction is not pgx.Tx")
 	}
 
 	var acc models.Account
@@ -95,7 +99,7 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx models.Tx
 
 	pgTx, ok := tx.(pgx.Tx)
 	if !ok {
-		return errors.New("transaction is not r pgx.Tx")
+		return errors.New("transaction is not pgx.Tx")
 	}
 
 	payload, err := json.Marshal(event)
