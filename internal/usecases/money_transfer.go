@@ -42,10 +42,6 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 		return fmt.Errorf("cannot get from account: %w", err)
 	}
 
-	if _, err := u.accountsRepository.GetByID(ctx, tx, in.ToAccount); err != nil {
-		return fmt.Errorf("cannot get to account: %w", err)
-	}
-
 	if in.Amount <= 0 {
 		return domain.ErrInvalidMoneyTransferAmount
 	}
