@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"outbox-payment-service/internal/domain/models"
+	"outbox-payment-service/internal/domain"
 	"outbox-payment-service/internal/infra/postgres"
 
 	"github.com/google/uuid"
@@ -21,11 +21,11 @@ func NewAccounts(conn *pgxpool.Pool) *Accounts {
 	return &Accounts{conn: conn}
 }
 
-func (r *Accounts) BeginTx(ctx context.Context) (models.Tx, error) {
+func (r *Accounts) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return r.conn.Begin(ctx)
 }
 
-func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx models.Tx, in *models.TransferMoneyIn) error {
+func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *domain.TransferMoneyIn) error {
 	query := `
 		insert into transfers(id, from_account_id, to_account_id, amount)
 		values ($1, $2, $3, $4)
@@ -47,7 +47,7 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx models.Tx, in *mo
 	return nil
 }
 
-func (r *Accounts) MoveMoney(ctx context.Context, tx models.Tx, in *models.TransferMoneyIn) error {
+func (r *Accounts) MoveMoney(ctx context.Context, tx domain.Tx, in *domain.TransferMoneyIn) error {
 	query := `
 		update accounts
 		set balance = case
@@ -69,7 +69,7 @@ func (r *Accounts) MoveMoney(ctx context.Context, tx models.Tx, in *models.Trans
 	return nil
 }
 
-func (r *Accounts) GetByID(ctx context.Context, tx models.Tx, id models.AccountID) (*models.Account, error) {
+func (r *Accounts) GetByID(ctx context.Context, tx domain.Tx, id domain.AccountID) (*domain.Account, error) {
 	query := `
 		select id, username, balance from accounts where accounts.id = $1 for share;
 	`
@@ -79,7 +79,7 @@ func (r *Accounts) GetByID(ctx context.Context, tx models.Tx, id models.AccountI
 		return nil, errors.New("transaction is not pgx.Tx")
 	}
 
-	var acc models.Account
+	var acc domain.Account
 	err := pgTx.QueryRow(ctx, query, id).Scan(
 		&acc.ID,
 		&acc.Username,
@@ -92,7 +92,7 @@ func (r *Accounts) GetByID(ctx context.Context, tx models.Tx, id models.AccountI
 	return &acc, nil
 }
 
-func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx models.Tx, event *models.TransferMoneyIn) error {
+func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx, event *domain.TransferMoneyIn) error {
 	query := `
 		insert into outbox (id, event_type, payload, status)
 		values (id, event_type, payload, 'new')

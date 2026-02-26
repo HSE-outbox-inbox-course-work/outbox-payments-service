@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"outbox-payment-service/internal/domain/models"
+	"outbox-payment-service/internal/domain"
 )
 
 type accountsRepository interface {
-	BeginTx(context.Context) (models.Tx, error)
-	CreateMoneyTransfer(context.Context, models.Tx, *models.TransferMoneyIn) error
-	GetByID(context.Context, models.Tx, models.AccountID) (*models.Account, error)
-	MoveMoney(context.Context, models.Tx, *models.TransferMoneyIn) error
+	BeginTx(context.Context) (domain.Tx, error)
+	CreateMoneyTransfer(context.Context, domain.Tx, *domain.TransferMoneyIn) error
+	GetByID(context.Context, domain.Tx, domain.AccountID) (*domain.Account, error)
+	MoveMoney(context.Context, domain.Tx, *domain.TransferMoneyIn) error
 }
 
 type MoneyTransfer struct {
@@ -24,7 +24,7 @@ func NewMoneyTransfer(accountsRepository accountsRepository) *MoneyTransfer {
 	}
 }
 
-func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *models.TransferMoneyIn) (err error) {
+func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (err error) {
 	tx, err := u.accountsRepository.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot begin tx: %w", err)
@@ -43,11 +43,11 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *models.TransferMo
 	}
 
 	if in.Amount <= 0 {
-		return models.ErrInvalidMoneyTransferAmount
+		return domain.ErrInvalidMoneyTransferAmount
 	}
 
 	if account.Balance < in.Amount {
-		return models.ErrInsufficientFunds
+		return domain.ErrInsufficientFunds
 	}
 
 	if err = u.accountsRepository.MoveMoney(ctx, tx, in); err != nil {

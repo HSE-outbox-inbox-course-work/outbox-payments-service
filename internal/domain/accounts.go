@@ -1,4 +1,4 @@
-package models
+package domain
 
 import (
 	"errors"
@@ -23,9 +23,4 @@ type TransferMoneyIn struct {
 	FromAccount AccountID
 	ToAccount   AccountID
 	Amount      int64
-}
-
-type ChangeBalanceIn struct {
-	AccountID AccountID
-	Amount    int64
 }
