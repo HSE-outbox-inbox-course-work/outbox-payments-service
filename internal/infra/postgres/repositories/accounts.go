@@ -54,7 +54,7 @@ func (r *Accounts) MoveMoney(ctx context.Context, tx domain.Tx, in *domain.Trans
 			when id = $1 then balance - $3
 			when id = $2 then balance + $3
 		end
-		where id in  ($1, $2);
+		where id in ($1, $2);
 	`
 
 	pgTx, ok := tx.(pgx.Tx)

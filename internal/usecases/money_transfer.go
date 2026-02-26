@@ -24,6 +24,12 @@ func NewMoneyTransfer(accountsRepository accountsRepository) *MoneyTransfer {
 	}
 }
 
+// проблемы
+// нет проверки что accountTo существует
+// если его не существует то деньги спишуться но никуда не зачисляться (нужно исправить запрос в moveMoney)
+// если делать GetById сначала from потом to может быть дедлок
+// Не проверяется результат UPDATE Нужно смотреть RowsAffected или использовать CTE с RETURNING, чтобы понимать, списались ли деньги и зачислились ли.
+
 func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (err error) {
 	tx, err := u.accountsRepository.BeginTx(ctx)
 	if err != nil {
