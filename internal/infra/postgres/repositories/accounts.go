@@ -71,7 +71,7 @@ func (r *Accounts) MoveMoney(ctx context.Context, tx domain.Tx, in *domain.Trans
 
 func (r *Accounts) GetByID(ctx context.Context, tx domain.Tx, id domain.AccountID) (*domain.Account, error) {
 	query := `
-		select id, username, balance from accounts where accounts.id = $1 for share;
+		select id, username, balance from accounts where accounts.id = $1 for update;
 	`
 
 	pgTx, ok := tx.(pgx.Tx)
@@ -85,6 +85,9 @@ func (r *Accounts) GetByID(ctx context.Context, tx domain.Tx, id domain.AccountI
 		&acc.Username,
 		&acc.Balance,
 	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrAccountNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot scan account: %w", err)
 	}
@@ -95,7 +98,7 @@ func (r *Accounts) GetByID(ctx context.Context, tx domain.Tx, id domain.AccountI
 func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx, event *domain.TransferMoneyIn) error {
 	query := `
 		insert into outbox (id, event_type, payload, status)
-		values (id, event_type, payload, 'new')
+		values ($1, $2, $3, 'new')
 	`
 
 	pgTx, ok := tx.(pgx.Tx)
