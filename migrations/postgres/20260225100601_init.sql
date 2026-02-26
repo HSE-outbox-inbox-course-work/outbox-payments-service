@@ -9,6 +9,15 @@ create table if not exists accounts
     created_at timestamptz      not null default now()
 );
 
+create table if not exists transfers
+(
+    id              uuid primary key not null,
+    from_account_id uuid             not null references accounts (id),
+    to_account_id   uuid             not null references accounts (id),
+    amount          bigint           not null check (amount > 0),
+    created_at      timestamptz      not null default now()
+);
+
 create table if not exists outbox
 (
     id         uuid primary key not null,
@@ -22,5 +31,6 @@ create table if not exists outbox
 -- +goose Down
 -- +goose StatementBegin
 drop table if exists accounts;
+drop table if exists transfers;
 drop table if exists outbox;
 -- +goose StatementEnd

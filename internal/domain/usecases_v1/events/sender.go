@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"outbox-payment-service/internal/domain/domain"
+	"outbox-payment-service/internal/domain/models"
 	"time"
 )
 
@@ -12,17 +12,17 @@ type eventHandler interface {
 }
 
 type eventsRepository interface {
-	GetPending(ctx context.Context, limit int) ([]domain.Event, error)
-	MarkSent(ctx context.Context, id domain.EventID) error
-	MarkFailed(ctx context.Context, id domain.EventID, err string, nextRetryAt time.Time) error
+	GetPending(ctx context.Context, limit int) ([]models.Event, error)
+	MarkSent(ctx context.Context, id models.EventID) error
+	MarkFailed(ctx context.Context, id models.EventID, err string, nextRetryAt time.Time) error
 }
 
 type Sender struct {
-	handlers         map[domain.EventType]eventHandler
+	handlers         map[models.EventType]eventHandler
 	eventsRepository eventsRepository
 }
 
-func NewSender(handlers map[domain.EventType]eventHandler) *Sender {
+func NewSender(handlers map[models.EventType]eventHandler) *Sender {
 	return &Sender{
 		handlers: handlers,
 	}

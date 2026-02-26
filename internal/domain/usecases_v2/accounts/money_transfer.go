@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"outbox-payment-service/internal/domain/domain"
+	"outbox-payment-service/internal/domain/models"
 )
 
 type accountsRepository interface {
-	BeginTx(context.Context) (domain.Tx, error)
-	ChangeBalance(context.Context, domain.Tx, *domain.ChangeBalanceIn) error
-	GetByID(context.Context, domain.Tx, domain.AccountID) (*domain.Account, error)
-	CreateMoneyTransferredEvent(context.Context, domain.Tx, *domain.TransferMoneyIn) error
+	BeginTx(context.Context) (models.Tx, error)
+	TransferMoney(context.Context, models.Tx, *models.ChangeBalanceIn) error
+	GetByID(context.Context, models.Tx, models.AccountID) (*models.Account, error)
+	CreateMoneyTransferredEvent(context.Context, models.Tx, *models.TransferMoneyIn) error
 }
 
 type MoneyTransfer struct {
@@ -24,7 +24,7 @@ func NewMoneyTransfer(accountsRepository accountsRepository) *MoneyTransfer {
 	}
 }
 
-func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (err error) {
+func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *models.TransferMoneyIn) (err error) {
 	tx, err := u.accountsRepository.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot begin tx: %w", err)
@@ -43,10 +43,10 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 	}
 
 	if account.Balance < in.Amount {
-		return domain.ErrInsufficientFunds
+		return models.ErrInsufficientFunds
 	}
 
-	err = u.accountsRepository.ChangeBalance(ctx, tx, &domain.ChangeBalanceIn{
+	err = u.accountsRepository.TransferMoney(ctx, tx, &models.ChangeBalanceIn{
 		AccountID: in.FromAccount,
 		Amount:    -in.Amount,
 	})
@@ -54,7 +54,7 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 		return fmt.Errorf("cannot decrease account balance: %w", err)
 	}
 
-	err = u.accountsRepository.ChangeBalance(ctx, tx, &domain.ChangeBalanceIn{
+	err = u.accountsRepository.TransferMoney(ctx, tx, &models.ChangeBalanceIn{
 		AccountID: in.ToAccount,
 		Amount:    in.Amount,
 	})
