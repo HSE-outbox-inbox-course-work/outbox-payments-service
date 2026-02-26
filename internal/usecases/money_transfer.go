@@ -55,7 +55,7 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 	}
 
 	if err = u.accountsRepository.MoveMoney(ctx, tx, in); err != nil {
-		return err
+		return fmt.Errorf("cannot move money: %w", err)
 	}
 
 	if err := u.accountsRepository.CreateMoneyTransfer(ctx, tx, in); err != nil {
