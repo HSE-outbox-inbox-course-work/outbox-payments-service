@@ -40,7 +40,7 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 		return fmt.Errorf("cannot create money transfer: %w", err)
 	}
 
-	if err := r.createMoneyTransferredEvent(ctx, tx, in); err != nil {
+	if err := r.createMoneyTransferredEvent(ctx, tx, in); err != nil { //todo возможно стоит передавать id трансфера
 		return fmt.Errorf("cannot create money transfer event: %w", err)
 	}
 
