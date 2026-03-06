@@ -11,7 +11,7 @@ type accountsRepository interface {
 	BeginTx(context.Context) (domain.Tx, error)
 	CreateMoneyTransfer(context.Context, domain.Tx, *domain.TransferMoneyIn) error
 	GetByID(context.Context, domain.Tx, domain.AccountID) (*domain.Account, error)
-	MoveMoney(context.Context, domain.Tx, *domain.TransferMoneyIn) error
+	UpdateAccountBalance(context.Context, domain.Tx, domain.AccountID, int64) error
 }
 
 type MoneyTransfer struct {
@@ -24,13 +24,11 @@ func NewMoneyTransfer(accountsRepository accountsRepository) *MoneyTransfer {
 	}
 }
 
-// проблемы
-// нет проверки что accountTo существует
-// если его не существует то деньги спишуться но никуда не зачисляться (нужно исправить запрос в moveMoney)
-// если делать GetById сначала from потом to может быть дедлок
-// Не проверяется результат UPDATE Нужно смотреть RowsAffected или использовать CTE с RETURNING, чтобы понимать, списались ли деньги и зачислились ли.
-
 func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (err error) {
+	if in.Amount <= 0 {
+		return domain.ErrInvalidMoneyTransferAmount
+	}
+
 	tx, err := u.accountsRepository.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot begin tx: %w", err)
@@ -48,15 +46,20 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 		return fmt.Errorf("cannot get from account: %w", err)
 	}
 
-	if in.Amount <= 0 {
-		return domain.ErrInvalidMoneyTransferAmount
+	to, err := u.accountsRepository.GetByID(ctx, tx, in.ToAccount)
+	if err != nil {
+		return fmt.Errorf("cannot get to account: %w", err)
 	}
 
 	if from.Balance < in.Amount {
 		return domain.ErrInsufficientFunds
 	}
 
-	if err = u.accountsRepository.MoveMoney(ctx, tx, in); err != nil {
+	if err = u.accountsRepository.UpdateAccountBalance(ctx, tx, from.ID, -in.Amount); err != nil {
+		return fmt.Errorf("cannot move money: %w", err)
+	}
+
+	if err = u.accountsRepository.UpdateAccountBalance(ctx, tx, to.ID, in.Amount); err != nil {
 		return fmt.Errorf("cannot move money: %w", err)
 	}
 

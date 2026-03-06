@@ -47,14 +47,11 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 	return nil
 }
 
-func (r *Accounts) MoveMoney(ctx context.Context, tx domain.Tx, in *domain.TransferMoneyIn) error {
+func (r *Accounts) UpdateAccountBalance(ctx context.Context, tx domain.Tx, id domain.AccountID, amount int64) error {
 	query := `
 		update accounts
-		set balance = case
-			when id = $1 then balance - $3
-			when id = $2 then balance + $3
-		end
-		where id in ($1, $2);
+		set balance = balance + $1
+		where id = $2
 	`
 
 	pgTx, ok := tx.(pgx.Tx)
@@ -62,8 +59,12 @@ func (r *Accounts) MoveMoney(ctx context.Context, tx domain.Tx, in *domain.Trans
 		return errors.New("transaction is not pgx.Tx")
 	}
 
-	if _, err := pgTx.Exec(ctx, query, in.FromAccount, in.ToAccount, in.Amount); err != nil {
+	res, err := pgTx.Exec(ctx, query, amount, id)
+	if err != nil {
 		return fmt.Errorf("cannot change balance: %w", err)
+	}
+	if res.RowsAffected() != 1 {
+		return errors.New("cannot change balance rows affect not 1")
 	}
 
 	return nil
