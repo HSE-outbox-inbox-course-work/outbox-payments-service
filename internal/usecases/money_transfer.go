@@ -29,6 +29,8 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 		return domain.ErrInvalidMoneyTransferAmount
 	}
 
+	panic("13")
+
 	tx, err := u.accountsRepository.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot begin tx: %w", err)

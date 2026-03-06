@@ -1,0 +1,20 @@
+Logger:
+  Level: 0
+
+Postgres:
+  ConnString: "
+    host=localhost
+    port=5432
+    user=admin
+    password=password
+    dbname=payments-service-db
+    pool_min_conns=5
+    pool_max_conns=10
+    pool_max_conn_idle_time=5m
+    pool_max_conn_lifetime=5m
+    pool_max_conn_lifetime_jitter=30s
+    sslmode=disable
+  "
+
+HTTPServer:
+  Address: "0.0.0.0:8080"

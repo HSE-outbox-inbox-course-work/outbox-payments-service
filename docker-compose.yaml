@@ -6,9 +6,9 @@ services:
     container_name: pg
     restart: no
     environment:
-      POSTGRES_USER: user
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: outbox-payments-service
+      POSTGRES_DB: payments-service-db
     ports:
       - "5432:5432"
     volumes:

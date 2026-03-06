@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"net/http"
 	"outbox-payment-service/internal/domain"
 
@@ -10,9 +11,9 @@ import (
 )
 
 type transferMoneyRequest struct {
-	FromAccount domain.AccountID `json:"from_account"`
-	ToAccount   domain.AccountID `json:"to_account"`
-	Amount      int64            `json:"amount"`
+	FromAccount uuid.UUID `json:"from_account"`
+	ToAccount   uuid.UUID `json:"to_account"`
+	Amount      int64     `json:"amount"`
 }
 
 type moneyTransfer interface {
@@ -36,18 +37,20 @@ func (u *MoneyTransfer) ServeHTTP(c echo.Context) error {
 	}
 
 	err := u.moneyTransfer.TransferMoney(c.Request().Context(), &domain.TransferMoneyIn{
-		FromAccount: req.FromAccount,
-		ToAccount:   req.ToAccount,
+		FromAccount: domain.AccountID(req.FromAccount),
+		ToAccount:   domain.AccountID(req.ToAccount),
 		Amount:      req.Amount,
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, domain.ErrAccountNotFound):
+			return echo.NewHTTPError(http.StatusNotFound, err.Error())
 		case errors.Is(err, domain.ErrInsufficientFunds):
 			return echo.NewHTTPError(http.StatusConflict, err.Error())
 		case errors.Is(err, domain.ErrInvalidMoneyTransferAmount):
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		default:
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, echo.ErrInternalServerError.Error())
 		}
 	}
 
