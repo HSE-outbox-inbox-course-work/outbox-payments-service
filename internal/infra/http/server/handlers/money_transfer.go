@@ -50,7 +50,7 @@ func (u *MoneyTransfer) ServeHTTP(c echo.Context) error {
 		case errors.Is(err, domain.ErrInvalidMoneyTransferAmount):
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		default:
-			return echo.NewHTTPError(http.StatusInternalServerError, echo.ErrInternalServerError.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
 

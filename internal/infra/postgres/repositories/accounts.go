@@ -36,7 +36,7 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 		return errors.New("transaction is not pgx.Tx")
 	}
 
-	if _, err := pgTx.Exec(ctx, query, in.FromAccount, in.ToAccount, in.Amount); err != nil {
+	if _, err := pgTx.Exec(ctx, query, uuid.New(), in.FromAccount, in.ToAccount, in.Amount); err != nil {
 		return fmt.Errorf("cannot create money transfer: %w", err)
 	}
 
@@ -107,7 +107,11 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx
 		return errors.New("transaction is not pgx.Tx")
 	}
 
-	payload, err := json.Marshal(event)
+	payload, err := json.Marshal(&postgres.MoneyTransferEvent{
+		FromAccount: uuid.UUID(event.FromAccount),
+		ToAccount:   uuid.UUID(event.ToAccount),
+		Amount:      event.Amount,
+	})
 	if err != nil {
 		return fmt.Errorf("cannot marshal event: %w", err)
 	}
