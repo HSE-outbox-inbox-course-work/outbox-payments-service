@@ -19,7 +19,7 @@ services:
       - "9092:9092"
     environment:
       - KRAFT_CONTAINER_HOST_NAME=kafka
-      - KRAFT_CREATE_TOPICS=orders.events,users.events,payments.events
+      - KRAFT_CREATE_TOPICS=accounts.money.transferred
       - KRAFT_PARTITIONS_PER_TOPIC=1
       - KRAFT_AUTO_CREATE_TOPICS=true
 
@@ -29,7 +29,7 @@ services:
     depends_on:
       - kafka
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092

@@ -20,7 +20,7 @@ HTTPServer:
   Address: "0.0.0.0:8080"
 
 Workers:
-  RelyOutbox:
+  OutboxRely:
     KafkaBrokers: [ "localhost:8080" ]
     EventsLimit: 10
     Interval: 1s
