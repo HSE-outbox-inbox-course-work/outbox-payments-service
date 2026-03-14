@@ -23,7 +23,7 @@ create table if not exists outbox
     id         uuid primary key not null,
     event_type text             not null,
     payload    jsonb            not null,
-    status     text             not null check (status in ('new', 'done')),
+    status     text             not null check (status in ('new', 'sent')),
     created_at timestamptz      not null default now()
 );
 -- +goose StatementEnd

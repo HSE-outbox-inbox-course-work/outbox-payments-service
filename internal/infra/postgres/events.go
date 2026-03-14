@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/json"
 	"github.com/google/uuid"
 )
 
@@ -14,4 +15,10 @@ type MoneyTransferEvent struct {
 	FromAccount uuid.UUID `json:"from_account"`
 	ToAccount   uuid.UUID `json:"to_account"`
 	Amount      int64     `json:"amount"`
+}
+
+type EventToSend struct {
+	ID      uuid.UUID
+	Payload json.RawMessage
+	Type    EventType
 }
