@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-create table if not exists accounts
+create table accounts
 (
     id         uuid primary key not null,
     username   text             not null,
@@ -9,7 +9,7 @@ create table if not exists accounts
     created_at timestamptz      not null default now()
 );
 
-create table if not exists transfers
+create table transfers
 (
     id              uuid primary key not null,
     from_account_id uuid             not null references accounts (id),
@@ -18,7 +18,7 @@ create table if not exists transfers
     created_at      timestamptz      not null default now()
 );
 
-create table if not exists outbox
+create table outbox
 (
     id         uuid primary key not null,
     event_type text             not null,
@@ -30,7 +30,7 @@ create table if not exists outbox
 
 -- +goose Down
 -- +goose StatementBegin
-drop table if exists accounts;
-drop table if exists transfers;
-drop table if exists outbox;
+drop table accounts;
+drop table transfers;
+drop table outbox;
 -- +goose StatementEnd
