@@ -2,6 +2,7 @@ package outboxrely
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"log"
