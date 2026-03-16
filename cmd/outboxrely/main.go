@@ -30,10 +30,9 @@ func main() {
 	outboxRepo := repositories.NewOutbox(postgresConn)
 
 	kafkaWriter := &kafka.Writer{
-		Addr:                   kafka.TCP(conf.Workers.OutboxRelyWorker.KafkaBrokers...),
-		Balancer:               new(kafka.Hash),
-		RequiredAcks:           kafka.RequireAll,
-		AllowAutoTopicCreation: true,
+		Addr:         kafka.TCP(conf.Workers.OutboxRelyWorker.KafkaBrokers...),
+		Balancer:     new(kafka.Hash),
+		RequiredAcks: kafka.RequireAll,
 	}
 
 	worker := outboxrely.NewWorker(

@@ -2,7 +2,6 @@ package outboxrely
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"log"
@@ -59,6 +58,7 @@ func (w *Worker) Run(ctx context.Context) {
 
 				if err := w.repo.MarkSent(ctx, e.ID); err != nil {
 					log.Printf("error marking event done: %v", err)
+					continue
 				}
 			}
 		}

@@ -21,6 +21,6 @@ HTTPServer:
 
 Workers:
   OutboxRely:
-    KafkaBrokers: [ "localhost:9092" ]
+    KafkaBrokers: [ "localhost:29092" ]
     EventsLimit: 10
     Interval: 1s

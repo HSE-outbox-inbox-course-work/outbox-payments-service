@@ -36,7 +36,7 @@ func (r *Outbox) GetNewEvents(ctx context.Context, limit int64) ([]postgres.Even
 func (r *Outbox) MarkSent(ctx context.Context, id uuid.UUID) error {
 	query := `
         update outbox
-        set status = 'done'
+        set status = 'sent'
         where id = $1
     `
 
