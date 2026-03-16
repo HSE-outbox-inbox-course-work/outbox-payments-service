@@ -5,7 +5,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
-	"time"
 )
 
 const configPath = "config.yaml"
@@ -14,7 +13,6 @@ type Config struct {
 	Logger     Logger     `yaml:"Logger"`
 	Postgres   Postgres   `yaml:"Postgres"`
 	HTTPServer HTTPServer `yaml:"HTTPServer"`
-	Workers    Workers    `yaml:"Workers"`
 }
 
 type Logger struct {
@@ -27,16 +25,6 @@ type Postgres struct {
 
 type HTTPServer struct {
 	Address string `yaml:"Address"`
-}
-
-type Workers struct {
-	OutboxRelyWorker OutboxRely `yaml:"OutboxRely"`
-}
-
-type OutboxRely struct {
-	KafkaBrokers []string      `yaml:"KafkaBrokers"`
-	EventsLimit  int64         `yaml:"EventsLimit"`
-	Interval     time.Duration `yaml:"Interval"`
 }
 
 func Read() (*Config, error) {
