@@ -35,23 +35,9 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
     volumes:
       - kafka_data:/var/lib/kafka/data
-
-  kafka-init-topics:
-    image: confluentinc/cp-kafka:latest
-    container_name: kafka-init-topics
-    depends_on:
-      - kafka
-    entrypoint: [ '/bin/sh', '-c' ]
-    command: |
-      "
-      echo -e 'Creating topic accounts.money.transferred'
-      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic accounts.money.transferred --replication-factor 1 --partitions 1
-
-      echo -e 'Available topics:' 
-      kafka-topics --bootstrap-server kafka:9092 --list
-      "
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
