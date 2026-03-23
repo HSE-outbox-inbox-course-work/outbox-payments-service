@@ -64,7 +64,7 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
 
-  connect:
+  kafka-connect:
     image: debezium/connect:2.5
     container_name: connect
     depends_on:

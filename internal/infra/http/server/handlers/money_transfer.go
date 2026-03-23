@@ -3,9 +3,10 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
 	"net/http"
 	"outbox-payment-service/internal/domain"
+
+	"github.com/google/uuid"
 
 	"github.com/labstack/echo/v4"
 )

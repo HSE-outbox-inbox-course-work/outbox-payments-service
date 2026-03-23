@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/labstack/echo/v4/middleware"
 	"log"
 	"log/slog"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"outbox-payment-service/internal/usecases"
 	"outbox-payment-service/pkg/sl"
 	"syscall"
+
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/labstack/echo/v4"
 )

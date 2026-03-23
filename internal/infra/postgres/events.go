@@ -7,7 +7,7 @@ import (
 type EventType string
 
 const (
-	EventTypeMoneyTransferred EventType = "accounts.money.transferred" //todo вообще так себе разделение точками на доменное что то
+	EventTypeMoneyTransferred EventType = "accounts.money.transferred"
 )
 
 type MoneyTransferEvent struct {
