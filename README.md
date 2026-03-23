@@ -2,7 +2,7 @@
 
 ## Запуск
 - docker compose up -d
-- go run cmd/main.go (применение миграций)
+- go run cmd/main.go (применение миграций, иначе connect сам создаст publication)
 - make kafka-connect-create-outbox-connector
 - можно делать запросы и смотреть в кафку
 
