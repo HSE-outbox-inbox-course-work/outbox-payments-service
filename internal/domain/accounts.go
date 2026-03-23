@@ -19,9 +19,3 @@ type Account struct {
 	Username string
 	Balance  int64
 }
-
-type TransferMoneyIn struct {
-	FromAccount AccountID
-	ToAccount   AccountID
-	Amount      int64
-}

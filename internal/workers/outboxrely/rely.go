@@ -2,11 +2,12 @@ package outboxrely
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
 	"log"
 	"outbox-payment-service/internal/infra/postgres"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/segmentio/kafka-go"
 )
 
 type EventsProvider interface {
@@ -48,7 +49,7 @@ func (w *Worker) Run(ctx context.Context) {
 			for _, e := range events {
 				err := w.writer.WriteMessages(ctx, kafka.Message{
 					Topic: string(e.Type),
-					Key:   e.ID[:],
+					Key:   []byte(e.AggregateID.String()),
 					Value: e.Payload,
 				})
 				if err != nil {

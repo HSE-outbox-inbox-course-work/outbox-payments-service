@@ -3,10 +3,11 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"outbox-payment-service/internal/infra/postgres"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"outbox-payment-service/internal/infra/postgres"
 )
 
 type Outbox struct {
@@ -19,7 +20,7 @@ func NewOutbox(conn *pgxpool.Pool) *Outbox {
 
 func (r *Outbox) GetNewEvents(ctx context.Context, limit int64) ([]postgres.EventToSend, error) {
 	query := `
-		select id, event_type, payload from outbox
+		select id, aggregate_id, event_type, payload from outbox
 	    where status = 'new'
 	    order by created_at
 		limit $1
@@ -51,6 +52,7 @@ func (r *Outbox) collectEvent(row pgx.CollectableRow) (postgres.EventToSend, err
 	var event postgres.EventToSend
 	err := row.Scan(
 		&event.ID,
+		&event.AggregateID,
 		&event.Type,
 		&event.Payload,
 	)

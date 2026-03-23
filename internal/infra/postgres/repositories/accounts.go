@@ -29,6 +29,7 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 	query := `
 		insert into transfers(id, from_account_id, to_account_id, amount)
 		values ($1, $2, $3, $4)
+		returning id;
 	`
 
 	pgTx, ok := tx.(pgx.Tx)
@@ -36,11 +37,19 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 		return errors.New("transaction is not pgx.Tx")
 	}
 
-	if _, err := pgTx.Exec(ctx, query, uuid.New(), in.FromAccount, in.ToAccount, in.Amount); err != nil {
+	var id domain.TransferID
+	if err := pgTx.QueryRow(ctx, query, uuid.New(), in.FromAccount, in.ToAccount, in.Amount).Scan(&id); err != nil {
 		return fmt.Errorf("cannot create money transfer: %w", err)
 	}
 
-	if err := r.createMoneyTransferredEvent(ctx, tx, in); err != nil { //todo возможно стоит передавать id трансфера
+	event := &postgres.MoneyTransferEvent{
+		TransferID:  uuid.UUID(id),
+		FromAccount: uuid.UUID(in.FromAccount),
+		ToAccount:   uuid.UUID(in.ToAccount),
+		Amount:      in.Amount,
+	}
+
+	if err := r.createMoneyTransferredEvent(ctx, tx, event); err != nil {
 		return fmt.Errorf("cannot create money transfer event: %w", err)
 	}
 
@@ -96,10 +105,10 @@ func (r *Accounts) GetByID(ctx context.Context, tx domain.Tx, id domain.AccountI
 	return &acc, nil
 }
 
-func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx, event *domain.TransferMoneyIn) error {
+func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx, event *postgres.MoneyTransferEvent) error {
 	query := `
-		insert into outbox (id, event_type, payload, status)
-		values ($1, $2, $3, 'new')
+		insert into outbox (id, aggregate_id, event_type, payload, status)
+		values ($1, $2, $3, $4, 'new')
 	`
 
 	pgTx, ok := tx.(pgx.Tx)
@@ -107,16 +116,12 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx
 		return errors.New("transaction is not pgx.Tx")
 	}
 
-	payload, err := json.Marshal(&postgres.MoneyTransferEvent{
-		FromAccount: uuid.UUID(event.FromAccount),
-		ToAccount:   uuid.UUID(event.ToAccount),
-		Amount:      event.Amount,
-	})
+	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("cannot marshal event: %w", err)
 	}
 
-	if _, err := pgTx.Exec(ctx, query, uuid.New(), postgres.EventTypeMoneyTransferred, payload); err != nil {
+	if _, err := pgTx.Exec(ctx, query, uuid.New(), event.TransferID, postgres.EventTypeMoneyTransferred, payload); err != nil {
 		return fmt.Errorf("cannot exec query: %w", err)
 	}
 
