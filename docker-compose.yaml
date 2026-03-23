@@ -52,7 +52,7 @@ services:
 
   kafka-connect:
     image: debezium/connect:2.5
-    container_name: connect
+    container_name: kafka-connect
     depends_on:
       - kafka
       - postgres
