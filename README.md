@@ -1,38 +1,60 @@
-# outbox-payments-service
+# Outbox Payments Service
 
-## Запуск
-- docker compose up -d
-- go run cmd/main.go (применение миграций, иначе connect сам создаст publication)
-- make kafka-connect-create-outbox-connector
-- можно делать запросы и смотреть в кафку
+Сервис переводов денежных средств с гарантированной доставкой событий по паттерну **Transactional Outbox**.
 
-outbox table должна выглядеть так
+Эта ветка использует **CDC (Change Data Capture)** через Debezium для доставки событий из таблицы `outbox` в Kafka. Альтернативная реализация с воркером — в ветке `worker-impl`.
 
-https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html
+## Быстрый старт
 
-```json
-{
-  "name": "outbox-connector",
-  "config": {
-    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "postgres",
-    "database.port": "5432",
-    "database.user": "admin",
-    "database.password": "password",
-    "database.dbname": "payments-service-db",
-    "topic.prefix": "payments-service-db",
-    "table.include.list": "public.outbox",
-    "plugin.name": "pgoutput",
-    "publication.name": "outbox_pub",
-    "tombstones.on.delete": "false",
-    "slot.name": "outbox_slot",
-    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "transforms": "outbox", // явно задаем плагин
-    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
-    "transforms.outbox.route.by.field": "event_type",
-    "transforms.outbox.route.topic.replacement": "${routedByValue}",
-    "transforms.outbox.table.field.event.key": "aggregate_id"
-  }
-}
+### 1. Поднять инфраструктуру
+
+```bash
+docker compose up -d
 ```
+
+Запускает PostgreSQL (`wal_level=logical`), Kafka, Kafka UI и Kafka Connect (Debezium).
+
+### 2. Запустить сервис
+
+```bash
+go run cmd/main.go
+```
+
+Сервис автоматически применит миграции и начнёт слушать на `localhost:8080`.
+
+> Важно запустить сервис **до** регистрации коннектора — миграции создают таблицу `outbox` и publication `outbox_pub`, которые нужны Debezium.
+
+### 3. Зарегистрировать Debezium-коннектор
+
+```bash
+make kafka-connect-create-outbox-connector
+```
+
+### 4. Сделать перевод
+
+```bash
+curl -s -X POST localhost:8080/api/v1/accounts/transfer-money \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_account": "22222222-2222-2222-2222-222222222222",
+    "to_account": "11111111-1111-1111-1111-111111111111",
+    "amount": 100
+  }'
+```
+
+Ответ: `204 No Content`.
+
+### 5. Прочитать событие из Kafka
+
+```bash
+docker exec kafka kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic accounts.money.transferred \
+  --from-beginning
+```
+
+Или открыть Kafka UI: http://localhost:8081
+
+## Стек
+
+Go, PostgreSQL, Apache Kafka, Debezium, Kafka Connect
