@@ -17,8 +17,12 @@ type transferMoneyRequest struct {
 	Amount      int64     `json:"amount"`
 }
 
+type transferMoneyResponse struct {
+	TransferID uuid.UUID `json:"transfer_id"`
+}
+
 type moneyTransfer interface {
-	TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (err error)
+	TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (domain.TransferID, error)
 }
 
 type MoneyTransfer struct {
@@ -37,7 +41,7 @@ func (u *MoneyTransfer) ServeHTTP(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	err := u.moneyTransfer.TransferMoney(c.Request().Context(), &domain.TransferMoneyIn{
+	transferID, err := u.moneyTransfer.TransferMoney(c.Request().Context(), &domain.TransferMoneyIn{
 		FromAccount: domain.AccountID(req.FromAccount),
 		ToAccount:   domain.AccountID(req.ToAccount),
 		Amount:      req.Amount,
@@ -55,5 +59,7 @@ func (u *MoneyTransfer) ServeHTTP(c echo.Context) error {
 		}
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusCreated, transferMoneyResponse{
+		TransferID: uuid.UUID(transferID),
+	})
 }

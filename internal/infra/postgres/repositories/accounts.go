@@ -25,7 +25,7 @@ func (r *Accounts) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return r.conn.Begin(ctx)
 }
 
-func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *domain.TransferMoneyIn) error {
+func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *domain.TransferMoneyIn) (domain.TransferID, error) {
 	query := `
 		insert into transfers(id, from_account_id, to_account_id, amount)
 		values ($1, $2, $3, $4)
@@ -34,12 +34,12 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 
 	pgTx, ok := tx.(pgx.Tx)
 	if !ok {
-		return errors.New("transaction is not pgx.Tx")
+		return domain.TransferID{}, errors.New("transaction is not pgx.Tx")
 	}
 
 	var id domain.TransferID
 	if err := pgTx.QueryRow(ctx, query, uuid.New(), in.FromAccount, in.ToAccount, in.Amount).Scan(&id); err != nil {
-		return fmt.Errorf("cannot create money transfer: %w", err)
+		return domain.TransferID{}, fmt.Errorf("cannot create money transfer: %w", err)
 	}
 
 	event := &postgres.MoneyTransferEvent{
@@ -49,11 +49,11 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 		Amount:      in.Amount,
 	}
 
-	if err := r.createMoneyTransferredEvent(ctx, tx, event); err != nil { //todo возможно стоит передавать id трансфера
-		return fmt.Errorf("cannot create money transfer event: %w", err)
+	if err := r.createMoneyTransferredEvent(ctx, tx, event); err != nil {
+		return domain.TransferID{}, fmt.Errorf("cannot create money transfer event: %w", err)
 	}
 
-	return nil
+	return id, nil
 }
 
 func (r *Accounts) UpdateAccountBalance(ctx context.Context, tx domain.Tx, id domain.AccountID, amount int64) error {
