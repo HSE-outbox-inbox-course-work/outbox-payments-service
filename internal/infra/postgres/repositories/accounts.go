@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"outbox-payment-service/internal/domain"
+	"outbox-payment-service/internal/infra/metrics"
 	"outbox-payment-service/internal/infra/postgres"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -14,11 +16,12 @@ import (
 )
 
 type Accounts struct {
-	conn *pgxpool.Pool
+	conn    *pgxpool.Pool
+	metrics *metrics.Metrics
 }
 
-func NewAccounts(conn *pgxpool.Pool) *Accounts {
-	return &Accounts{conn: conn}
+func NewAccounts(conn *pgxpool.Pool, m *metrics.Metrics) *Accounts {
+	return &Accounts{conn: conn, metrics: m}
 }
 
 func (r *Accounts) BeginTx(ctx context.Context) (domain.Tx, error) {
@@ -47,6 +50,7 @@ func (r *Accounts) CreateMoneyTransfer(ctx context.Context, tx domain.Tx, in *do
 		FromAccount: uuid.UUID(in.FromAccount),
 		ToAccount:   uuid.UUID(in.ToAccount),
 		Amount:      in.Amount,
+		EventTime:   time.Now().UTC(),
 	}
 
 	if err := r.createMoneyTransferredEvent(ctx, tx, event); err != nil {
@@ -124,6 +128,10 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx
 	if _, err := pgTx.Exec(ctx, query, uuid.New(), event.TransferID, postgres.EventTypeMoneyTransferred, payload); err != nil {
 		return fmt.Errorf("cannot exec query: %w", err)
 	}
+
+	// Считаем именно успешные INSERT'ы — иначе rate(events_inserted_total)
+	// показывал бы и откатанные попытки, что искажало бы картину доставки.
+	r.metrics.OutboxEventsInserted.WithLabelValues(string(postgres.EventTypeMoneyTransferred)).Inc()
 
 	return nil
 }

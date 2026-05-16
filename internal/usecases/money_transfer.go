@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"outbox-payment-service/internal/domain"
+	"outbox-payment-service/internal/infra/metrics"
+	"time"
 )
 
 type accountsRepository interface {
@@ -16,15 +18,26 @@ type accountsRepository interface {
 
 type MoneyTransfer struct {
 	accountsRepository accountsRepository
+	metrics            *metrics.Metrics
 }
 
-func NewMoneyTransfer(accountsRepository accountsRepository) *MoneyTransfer {
+func NewMoneyTransfer(accountsRepository accountsRepository, m *metrics.Metrics) *MoneyTransfer {
 	return &MoneyTransfer{
 		accountsRepository: accountsRepository,
+		metrics:            m,
 	}
 }
 
 func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMoneyIn) (transferID domain.TransferID, err error) {
+	start := time.Now()
+	outcome := metrics.OutcomeOK
+	defer func() {
+		// classifyOutcome строится по итоговому err — он уже учитывает Commit/Rollback ниже.
+		outcome = classifyOutcome(err, outcome)
+		u.metrics.TransferAttempts.WithLabelValues(string(outcome)).Inc()
+		u.metrics.TransferDuration.WithLabelValues(string(outcome)).Observe(time.Since(start).Seconds())
+	}()
+
 	if in.Amount <= 0 {
 		return domain.TransferID{}, domain.ErrInvalidMoneyTransferAmount
 	}
@@ -69,4 +82,26 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 	}
 
 	return id, nil
+}
+
+// classifyOutcome — детерминированная классификация исхода перевода по err.
+// Бизнес-ошибки (invalid amount, insufficient funds, account not found)
+// отделяем от прочих сбоев — они показывают здоровье БД и не должны
+// смешиваться с ошибками валидации в SLO.
+func classifyOutcome(err error, fallback metrics.Outcome) metrics.Outcome {
+	switch {
+	case err == nil:
+		return metrics.OutcomeOK
+	case errors.Is(err, domain.ErrInvalidMoneyTransferAmount):
+		return metrics.OutcomeInvalidAmount
+	case errors.Is(err, domain.ErrInsufficientFunds):
+		return metrics.OutcomeInsufficientFunds
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return metrics.OutcomeAccountNotFound
+	default:
+		if fallback != metrics.OutcomeOK {
+			return fallback
+		}
+		return metrics.OutcomeDBError
+	}
 }

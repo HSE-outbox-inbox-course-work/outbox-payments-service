@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -10,9 +12,14 @@ const (
 	EventTypeMoneyTransferred EventType = "accounts.money.transferred"
 )
 
+// EventTime — момент вставки события в outbox. Сериализуется в payload и
+// используется потребителем (Inbox) для замера end-to-end задержки доставки.
+// RFC3339Nano держит миллисекундную точность и читается JSON-парсером Go без
+// дополнительных трансформаций.
 type MoneyTransferEvent struct {
 	TransferID  uuid.UUID `json:"transfer_id"`
 	FromAccount uuid.UUID `json:"from_account"`
 	ToAccount   uuid.UUID `json:"to_account"`
 	Amount      int64     `json:"amount"`
+	EventTime   time.Time `json:"event_time"`
 }
