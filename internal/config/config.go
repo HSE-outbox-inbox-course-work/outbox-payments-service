@@ -43,5 +43,11 @@ func Read() (*Config, error) {
 		return nil, fmt.Errorf("error decoding config file: %v", err)
 	}
 
+	// OUTBOX_POSTGRES_CONN_STRING позволяет переопределить DSN без правки config.yaml.
+	// Используется при запуске в Docker (host=localhost → host=postgres).
+	if v := os.Getenv("OUTBOX_POSTGRES_CONN_STRING"); v != "" {
+		config.Postgres.ConnString = v
+	}
+
 	return &config, nil
 }

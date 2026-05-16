@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"outbox-payment-service/internal/config"
 	"outbox-payment-service/internal/infra/http/server/handlers"
+	appMiddleware "outbox-payment-service/internal/infra/http/server/middleware"
+	"outbox-payment-service/internal/infra/metrics"
 	"outbox-payment-service/internal/infra/postgres"
 	"outbox-payment-service/internal/infra/postgres/repositories"
 	"outbox-payment-service/internal/usecases"
@@ -17,6 +19,8 @@ import (
 	"syscall"
 
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/labstack/echo/v4"
 )
@@ -41,6 +45,9 @@ func main() {
 		logger.Error("cannot connect to postgres", sl.Error(err))
 		return
 	}
+
+	reg := prometheus.NewRegistry()
+	svcMetrics := metrics.New(reg)
 
 	accountsRepository := repositories.NewAccounts(postgresConn)
 
@@ -89,12 +96,15 @@ func main() {
 		},
 	}))
 
+	echoServer.Use(appMiddleware.MetricsMiddleware(svcMetrics))
+
 	defer func() {
 		if err := echoServer.Shutdown(context.TODO()); err != nil {
 			slog.Error("cannot shutdown echo server", sl.Error(err))
 		}
 	}()
 
+	echoServer.GET("/metrics", echo.WrapHandler(promhttp.HandlerFor(reg, promhttp.HandlerOpts{})))
 	echoServer.POST("/api/v1/accounts/transfer-money", moneyTransferHandler.ServeHTTP)
 
 	go func() {
