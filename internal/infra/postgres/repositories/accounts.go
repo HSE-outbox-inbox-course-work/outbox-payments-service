@@ -129,8 +129,6 @@ func (r *Accounts) createMoneyTransferredEvent(ctx context.Context, tx domain.Tx
 		return fmt.Errorf("cannot exec query: %w", err)
 	}
 
-	// Считаем именно успешные INSERT'ы — иначе rate(events_inserted_total)
-	// показывал бы и откатанные попытки, что искажало бы картину доставки.
 	r.metrics.OutboxEventsInserted.WithLabelValues(string(postgres.EventTypeMoneyTransferred)).Inc()
 
 	return nil

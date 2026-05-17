@@ -10,12 +10,9 @@ import (
 	"outbox-payment-service/internal/infra/metrics"
 )
 
-// MetricsMiddleware записывает RED-метрики для каждого HTTP-запроса:
-//   - outbox_http_requests_total{method, route, status}
-//   - outbox_http_request_duration_seconds{method, route}
-//
-// route берётся из шаблона Echo (например /api/v1/accounts/transfer-money),
-// а не из реального URL — это защищает от взрыва кардинальности.
+// MetricsMiddleware пишет RED-метрики для каждого HTTP-запроса.
+// route берётся из шаблона Echo, а не из реального URL, чтобы метка
+// route не разрасталась под динамические сегменты.
 func MetricsMiddleware(m *metrics.Metrics) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {

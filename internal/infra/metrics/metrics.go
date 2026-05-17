@@ -1,18 +1,12 @@
-// Package metrics держит описание всех Prometheus-метрик outbox-сервиса
-// и их регистрацию в реестре. Сами места инкрементов разнесены по слоям:
+// Package metrics регистрирует Prometheus-метрики outbox-сервиса.
+// Инкременты разнесены по слоям: HTTP middleware, usecase MoneyTransfer,
+// repository accounts. Фоновый коллектор Run() обновляет gauge'и pgxpool.
 //
-//   - HTTP RED — в middleware (internal/infra/http/server/middleware);
-//   - бизнес-исход перевода — в usecase MoneyTransfer;
-//   - вставка события в outbox — в репозитории accounts;
-//   - состояние пула pgx и глубина outbox-таблицы — фоновый коллектор Run().
-//
-// Namespace "outbox" даёт префикс outbox_* у всех имён, что отделяет
-// сервисные метрики от метрик инфраструктуры (pg_*, kafka_*).
+// Namespace outbox_ отделяет сервисные метрики от инфраструктурных (pg_*, kafka_*).
 package metrics
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,13 +15,10 @@ import (
 
 const namespace = "outbox"
 
-// Buckets для бизнес-длительностей (секунды). Перекрывают типичный диапазон
-// от долей миллисекунды до пары секунд — этого достаточно для DB-операций
-// и одного REST-запроса.
 var latencyBuckets = []float64{0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
 
-// Outcome — конечный набор значений метки outcome. Только перечислимые
-// значения, иначе rate(...) by (outcome) даст случайные имена.
+// Outcome — конечный набор значений метки outcome, чтобы кардинальность
+// не разрасталась случайными строками.
 type Outcome string
 
 const (
@@ -38,26 +29,15 @@ const (
 	OutcomeDBError           Outcome = "db_error"
 )
 
-// Metrics — контейнер всех коллекторов. Передаётся по указателю в те места,
-// которым нужно делать наблюдения; nil-безопасных методов нет, инстанс
-// должен быть создан через New().
 type Metrics struct {
-	// HTTP RED
 	HTTPRequestsTotal   *prometheus.CounterVec
 	HTTPRequestDuration *prometheus.HistogramVec
 
-	// Бизнес-метрики usecase
 	TransferAttempts *prometheus.CounterVec
 	TransferDuration *prometheus.HistogramVec
 
-	// Outbox: запись события
 	OutboxEventsInserted *prometheus.CounterVec
 
-	// Outbox: состояние таблицы (фоновый сбор)
-	OutboxTableRows         prometheus.Gauge
-	OutboxOldestEventAgeSec prometheus.Gauge
-
-	// pgx pool stats (фоновый сбор)
 	PoolAcquired    prometheus.Gauge
 	PoolIdle        prometheus.Gauge
 	PoolTotal       prometheus.Gauge
@@ -96,19 +76,8 @@ func New(reg prometheus.Registerer) *Metrics {
 		OutboxEventsInserted: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "events_inserted_total",
-			Help:      "Events inserted into the outbox table (Debezium will pick them up later).",
+			Help:      "Events inserted into the outbox table.",
 		}, []string{"event_type"}),
-
-		OutboxTableRows: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "table_rows",
-			Help:      "Current number of rows in the outbox table.",
-		}),
-		OutboxOldestEventAgeSec: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "oldest_event_age_seconds",
-			Help:      "Age (seconds) of the oldest row in the outbox table; grows if CDC stops shipping.",
-		}),
 
 		PoolAcquired: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace, Subsystem: "pgx_pool",
@@ -136,53 +105,32 @@ func New(reg prometheus.Registerer) *Metrics {
 		m.HTTPRequestsTotal, m.HTTPRequestDuration,
 		m.TransferAttempts, m.TransferDuration,
 		m.OutboxEventsInserted,
-		m.OutboxTableRows, m.OutboxOldestEventAgeSec,
 		m.PoolAcquired, m.PoolIdle, m.PoolTotal, m.PoolMax, m.PoolAcquireWait,
 	)
 	return m
 }
 
-// Run запускает фоновый сборщик, который раз в interval опрашивает
-// состояние пула pgx и outbox-таблицы. Использует одно read-only
-// соединение из пула, нагрузку держит минимальной.
-//
-// Останавливается по ctx.Done().
+// Run периодически снимает pgxpool.Stat() в gauge'и. Останавливается по ctx.Done().
 func (m *Metrics) Run(ctx context.Context, pool *pgxpool.Pool, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
-	m.collectOnce(ctx, pool)
+	m.collectOnce(pool)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			m.collectOnce(ctx, pool)
+			m.collectOnce(pool)
 		}
 	}
 }
 
-func (m *Metrics) collectOnce(ctx context.Context, pool *pgxpool.Pool) {
+func (m *Metrics) collectOnce(pool *pgxpool.Pool) {
 	stat := pool.Stat()
 	m.PoolAcquired.Set(float64(stat.AcquiredConns()))
 	m.PoolIdle.Set(float64(stat.IdleConns()))
 	m.PoolTotal.Set(float64(stat.TotalConns()))
 	m.PoolMax.Set(float64(stat.MaxConns()))
 	m.PoolAcquireWait.Set(float64(stat.EmptyAcquireCount()))
-
-	// Глубина и возраст таблицы outbox. Запрос лёгкий: COUNT(*) по небольшой
-	// таблице, и max(created_at) использует естественный порядок вставки.
-	// Если запрос упал (например, БД недоступна) — просто пропускаем тик.
-	var rows int64
-	var ageSec float64
-	row := pool.QueryRow(ctx,
-		`SELECT COUNT(*),
-		        COALESCE(EXTRACT(EPOCH FROM (now() - MIN(created_at))), 0)
-		 FROM outbox`)
-	if err := row.Scan(&rows, &ageSec); err != nil {
-		slog.Debug("metrics: cannot collect outbox stats", slog.String("err", err.Error()))
-		return
-	}
-	m.OutboxTableRows.Set(float64(rows))
-	m.OutboxOldestEventAgeSec.Set(ageSec)
 }

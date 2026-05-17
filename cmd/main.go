@@ -49,18 +49,12 @@ func main() {
 	}
 
 	reg := prometheus.NewRegistry()
-	// process_* (cpu, fds, mem) и go_* (gc, goroutines) — стандартные коллекторы
-	// клиентской библиотеки. Включаем их явно, без default-реестра, чтобы
-	// не тянуть мусорные метрики и держать /metrics детерминированным.
 	reg.MustRegister(
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),
 	)
 	svcMetrics := metrics.New(reg)
 
-	// Фоновый коллектор: pgxpool.Stat() + COUNT/age по таблице outbox.
-	// Интервал 5s даёт разрешение, достаточное для алертов и графиков,
-	// и не нагружает БД (это один лёгкий запрос на индекс по created_at).
 	go svcMetrics.Run(ctx, postgresConn, 5*time.Second)
 
 	accountsRepository := repositories.NewAccounts(postgresConn, svcMetrics)

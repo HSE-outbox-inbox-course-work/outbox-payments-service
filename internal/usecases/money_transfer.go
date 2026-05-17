@@ -32,7 +32,6 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 	start := time.Now()
 	outcome := metrics.OutcomeOK
 	defer func() {
-		// classifyOutcome строится по итоговому err — он уже учитывает Commit/Rollback ниже.
 		outcome = classifyOutcome(err, outcome)
 		u.metrics.TransferAttempts.WithLabelValues(string(outcome)).Inc()
 		u.metrics.TransferDuration.WithLabelValues(string(outcome)).Observe(time.Since(start).Seconds())
@@ -84,10 +83,9 @@ func (u *MoneyTransfer) TransferMoney(ctx context.Context, in *domain.TransferMo
 	return id, nil
 }
 
-// classifyOutcome — детерминированная классификация исхода перевода по err.
-// Бизнес-ошибки (invalid amount, insufficient funds, account not found)
-// отделяем от прочих сбоев — они показывают здоровье БД и не должны
-// смешиваться с ошибками валидации в SLO.
+// classifyOutcome относит err к одному из бизнес-исходов. Доменные ошибки
+// (invalid amount, insufficient funds, account not found) отделены от
+// прочих сбоев — у них разные SLO.
 func classifyOutcome(err error, fallback metrics.Outcome) metrics.Outcome {
 	switch {
 	case err == nil:
